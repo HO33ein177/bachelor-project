@@ -1,0 +1,77 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}ورود{% endblock %}
+
+{% block content %}
+    <div class="wrapper">
+        <form method="POST" action="{% url 'users:login' %}">
+            {% csrf_token %}
+            <h2>ورود</h2>
+            {% for field in form %}
+                <div class="input-field"> {{ field }} <label for="{{ field.id_for_label }}">{{ field.label }}</label> </div>
+                {% if field.errors %} <div class="errors" style="color: #ffdddd; text-align: right; font-size: 0.9em; margin-top: -10px; margin-bottom: 10px;"> {{ field.errors }} </div> {% endif %}
+                {% if field.help_text %} <div class="help-text" style="color: #cccccc; text-align: right; font-size: 0.8em; margin-top: -10px; margin-bottom: 10px;"> {{ field.help_text }} </div> {% endif %}
+            {% endfor %}
+            {% if form.non_field_errors %} <div class="errors" style="color: #ffdddd; text-align: right; font-size: 0.9em; margin-bottom: 10px;"> {{ form.non_field_errors }} </div> {% endif %}
+            <div class="forget"> <label for="remember"></label> <a href="{% url 'users:password_reset' %}">رمز عبور را فراموش کرده‌اید؟</a> </div>
+            <button type="submit">ورود</button>
+            <div class="register"> <p>حساب کاربری ندارید؟ <a href="{% url 'users:signup' %}">ثبت نام کنید</a></p> </div>
+        </form>
+    </div>
+{% endblock %}
+<!DOCTYPE html>
+
+{% load static %}
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login</title> <link rel="stylesheet" href="{% static 'css/style.css' %}"> <style>
+        /* Basic RTL support - Move to style.css for consistency if needed */
+        body { direction: rtl; }
+        .wrapper { text-align: right; }
+        .input-field label { right: 0; left: auto; }
+        .input-field input:focus~label,
+        .input-field input:valid~label {
+            transform: translateY(-120%) translateX(0%);
+        }
+        .forget label p { margin-right: 8px; margin-left: 0;}
+        .register { text-align: center; }
+    </style>
+</head>
+<body>
+    <div class="wrapper"> <form method="POST" action="{% url 'users:login' %}"> {% csrf_token %}
+
+            <h2 text-align = center>Login</h2> {% comment %} Manually render fields to match CSS structure {% endcomment %}
+            {% for field in form %}
+                <div class="input-field"> {{ field }} <label for="{{ field.id_for_label }}">{{ field.label }}</label> </div>
+                {% comment %} Optional: Display field-specific errors below the field {% endcomment %}
+                {% if field.errors %}
+                    <div class="errors" style="color: #ffdddd; text-align: center; font-size: 0.9em; margin-top: -10px; margin-bottom: 10px;">
+                        {{ field.errors }}
+                    </div>
+                {% endif %}
+                 {% if field.help_text %}
+                    <div class="help-text" style="color: #cccccc; text-align: center; font-size: 0.8em; margin-top: -10px; margin-bottom: 10px;">
+                        {{ field.help_text }}
+                    </div>
+                 {% endif %}
+            {% endfor %}
+
+            {% comment %} Display non-field errors (e.g., "Please enter a correct username and password.") {% endcomment %}
+            {% if form.non_field_errors %}
+                <div class="errors" style="color: #ffdddd; text-align: right; font-size: 0.9em; margin-bottom: 10px;">
+                    {{ form.non_field_errors }}
+                </div>
+            {% endif %}
+
+            
+
+            <button type="submit">Login</button> <div class="register"> <p>Don't have an account? <a href="{% url 'users:signup' %}">register</a></p>
+            </div>
+        </form>
+    </div>
+</body>
+</html>

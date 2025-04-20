@@ -1,0 +1,171 @@
+@import url("https://fonts.googleapis.com/css2?family=Open+Sans:wght@200;300;400;500;600;700&display=swap");
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  font-family: "Open Sans", sans-serif;
+}
+body {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  width: 100%;
+  padding: 0 10px;
+}
+body::before {
+  content: "";
+  position: absolute;
+  width: 100%;
+  height: 100%;
+    background: #000 url("../media/login-hero-bg.jpg") center;
+    background-size: cover;
+}
+.wrapper {
+  width: 400px;
+  border-radius: 8px;
+  padding: 30px;
+  text-align: center;
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+form {
+  display: flex;
+  flex-direction: column;
+}
+h2 {
+  font-size: 2rem;
+  margin-bottom: 20px;
+  color: #fff;
+}
+.input-field {
+  position: relative;
+  border-bottom: 2px solid #ccc;
+  margin: 15px 0;
+}
+.input-field label {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  transform: translateY(-50%);
+  color: #fff;
+  font-size: 16px;
+  pointer-events: none;
+  transition: 0.15s ease;
+}
+.input-field input {
+  width: 100%;
+  height: 40px;
+  background: transparent;
+  border: none;
+  outline: none;
+  font-size: 16px;
+  color: #fff;
+}
+.input-field input:focus~label,
+.input-field input:valid~label {
+  font-size: 0.8rem;
+  top: 10px;
+  transform: translateY(-120%);
+}
+.forget {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 25px 0 35px 0;
+  color: #fff;
+}
+#remember {
+  accent-color: #fff;
+}
+.forget label {
+  display: flex;
+  align-items: center;
+}
+.forget label p {
+  margin-left: 8px;
+}
+.wrapper a {
+  color: #efefef;
+  text-decoration: none;
+}
+.wrapper a:hover {
+  text-decoration: underline;
+}
+button {
+  background: #fff;
+  color: #000;
+  font-weight: 600;
+  border: none;
+  padding: 12px 20px;
+  cursor: pointer;
+  border-radius: 3px;
+  font-size: 16px;
+  border: 2px solid transparent;
+  transition: 0.3s ease;
+}
+button:hover {
+  color: #fff;
+  border-color: #fff;
+  background: rgba(255, 255, 255, 0.15);
+}
+.register {
+  text-align: center;
+  margin-top: 30px;
+  color: #fff;
+}
+.messages {
+  list-style: none; /* Remove default bullet points */
+  padding: 0; /* Remove default padding */
+  margin: 20px auto; /* Center block and add space */
+  width: 100%; /* Adjust width as needed */
+  max-width: 500px; /* Max width for readability */
+  border-radius: 8px; /* Match wrapper border-radius */
+  /* Semi-transparent background fitting the theme */
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  backdrop-filter: blur(5px); /* Optional: Add blur if desired */
+  -webkit-backdrop-filter: blur(5px);
+  overflow: hidden; /* Ensure child borders don't poke out */
+  direction: rtl; /* Ensure text direction is correct */
+  text-align: right; /* Align text to the right */
+}
+
+.messages li {
+  padding: 15px 20px; /* Comfortable padding */
+  margin: 0; /* No margin between list items */
+  color: #fff; /* White text for readability */
+  font-size: 15px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.15); /* Subtle separator */
+  /* Use border-inline-start for better LTR/RTL adaptability if supported */
+  /* border-inline-start-width: 5px; */
+  /* border-inline-start-style: solid; */
+  border-left-width: 5px; /* Fallback: Thick left border for color coding */
+  border-left-style: solid; /* Fallback */
+}
+
+.messages li:last-child {
+  border-bottom: none; /* Remove separator from last item */
+}
+
+/* Color-coding based on message tags */
+.messages li.success {
+  border-left-color: #4CAF50; /* Green */
+  /* background-color: rgba(76, 175, 80, 0.1); /* Optional subtle background tint */
+}
+
+.messages li.error {
+  border-left-color: #f44336; /* Red */
+   /* background-color: rgba(244, 67, 54, 0.1); */
+}
+
+.messages li.info {
+  border-left-color: #2196F3; /* Blue */
+   /* background-color: rgba(33, 150, 243, 0.1); */
+}
+
+.messages li.warning {
+  border-left-color: #ff9800; /* Orange */
+   /* background-color: rgba(255, 152, 0, 0.1); */
+}
