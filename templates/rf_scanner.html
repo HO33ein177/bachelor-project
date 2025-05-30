@@ -1,0 +1,305 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}RF Simulator (Time & Spectrum){% endblock %}
+
+{% block extra_head %}
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script> <style>
+        .controls-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        .control-group {
+            padding: 15px;
+            border: 1px solid #555;
+            border-radius: 5px;
+            background-color: rgba(255,255,255,0.05); /* Slightly transparent background for the group */
+        }
+        .control-group h3 {
+            margin-top: 0;
+            color: #00aaff; /* A distinct color for headings */
+            border-bottom: 1px solid #444;
+            padding-bottom: 5px;
+            margin-bottom: 10px;
+        }
+        .control-group label {
+            display: block;
+            margin-top: 10px; /* Add some space above labels */
+            margin-bottom: 5px;
+            color: #ccc;
+            font-size: 0.9em;
+        }
+        .control-group input[type="number"], .control-group input[type="text"] {
+            width: calc(100% - 16px); /* Adjust width to fit padding */
+            padding: 8px; /* More padding */
+            margin-bottom: 10px;
+            background-color: #333;
+            color: #eee;
+            border: 1px solid #666;
+            border-radius: 3px;
+            box-sizing: border-box; /* Include padding and border in the element's total width and height */
+        }
+        .control-btn {
+            padding: 10px 15px; /* More padding for buttons */
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-right:5px;
+            margin-top: 10px; /* Space above buttons */
+            font-size: 0.95em;
+        }
+        .control-btn.stop {
+            background-color: #f44336;
+        }
+        .control-btn:hover {
+            opacity: 0.85;
+        }
+        #rf-status {
+            margin-top: 15px;
+            padding: 10px;
+            background-color: rgba(0,0,0,0.2);
+            border-radius: 4px;
+            color: #ddd;
+            text-align: center; /* Center status text */
+        }
+        .chart-pair-container {
+            display: flex;
+            flex-wrap: wrap; /* Allow charts to wrap on smaller screens */
+            gap: 20px;
+            justify-content: space-around; /* Distribute space */
+            margin-top: 20px;
+        }
+        .chart-container {
+            width: 100%; /* Full width on small screens */
+            max-width: 700px;
+            min-width: 300px; /* Prevent charts from becoming too small */
+            flex-grow: 1; /* Allow charts to grow */
+            flex-basis: 45%; /* Try to fit two charts side-by-side if space allows */
+            background-color: #22252a; /* Dark background for chart area */
+            padding:15px;
+            border-radius:5px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.5);
+        }
+        h1, h2.chart-title {
+            color: #00aaff;
+            text-align: center;
+            margin-bottom: 15px;
+        }
+    </style>
+{% endblock %}
+
+{% block content %}
+    <h1>Simulated RF Analyzer (Time Domain & Spectrum)</h1>
+
+    <div class="controls-grid">
+        <div class="control-group">
+            <h3>Simulation Control</h3>
+            <button id="startSimButton" class="control-btn">Start Simulation</button>
+            <button id="stopSimButton" class="control-btn stop">Stop Simulation</button>
+        </div>
+
+        <div class="control-group">
+            <h3>Cosine Wave Parameters</h3>
+            <label for="waveFreq">Frequency (MHz):</label>
+            <input type="number" id="waveFreq" value="10" step="1">
+            <label for="waveAmp">Amplitude (V):</label>
+            <input type="number" id="waveAmp" value="1.0" step="0.1">
+            <label for="waveDuration">Sample Duration (µs):</label>
+            <input type="number" id="waveDuration" value="2" step="0.5">
+            <label for="sampleRate">Sample Rate (MSa/s):</label>
+            <input type="number" id="sampleRate" value="500" step="50">
+            <label for="noiseAmp">Noise Amplitude (V):</label>
+            <input type="number" id="noiseAmp" value="0.1" step="0.01">
+            <button id="configureCosineButton" class="control-btn">Apply Wave Settings</button>
+        </div>
+    </div>
+    <div id="rf-status">Status: Idle</div>
+
+    <div class="chart-pair-container">
+        <div class="chart-container">
+            <h2 class="chart-title">Time Domain Waveform</h2>
+            <canvas id="waveformChart"></canvas>
+        </div>
+        <div class="chart-container">
+            <h2 class="chart-title">Frequency Spectrum</h2>
+            <canvas id="fftSpectrumChart"></canvas>
+        </div>
+    </div>
+
+    <script>
+        const rfStatusSpan = document.getElementById('rf-status');
+        const startSimButton = document.getElementById('startSimButton');
+        const stopSimButton = document.getElementById('stopSimButton');
+        const configureCosineButton = document.getElementById('configureCosineButton');
+
+        // --- Chart.js setup for Time-Domain Waveform ---
+        const ctxTime = document.getElementById('waveformChart').getContext('2d');
+        let waveformChart = new Chart(ctxTime, {
+            type: 'line',
+            data: {
+                labels: [], // Time points (in µs)
+                datasets: [{
+                    label: 'Amplitude (V)',
+                    data: [], // Amplitude values
+                    borderColor: 'rgb(120, 190, 255)', // Light blue / cyan
+                    borderWidth: 1.5,
+                    tension: 0.1, // Slight smoothing
+                    pointRadius: 0, // No dots on the line
+                }]
+            },
+            options: {
+                animation: false,
+                responsive: true,
+                maintainAspectRatio: true, // You can set to false if you want to control aspect ratio via CSS height/width of canvas parent
+                scales: {
+                    x: {
+                        title: { display: true, text: 'Time (µs)', color: '#ccc' },
+                        ticks: { color: '#ccc', maxTicksLimit: 10 },
+                        grid: { color: 'rgba(255,255,255,0.1)' }
+                    },
+                    y: {
+                        title: { display: true, text: 'Amplitude (V)', color: '#ccc' },
+                        ticks: { color: '#ccc' },
+                        grid: { color: 'rgba(255,255,255,0.1)' },
+                        suggestedMin: -1.5, // Initial suggestion
+                        suggestedMax: 1.5  // Initial suggestion
+                    }
+                },
+                plugins: {
+                    legend: { labels: { color: '#ccc' } }
+                }
+            }
+        });
+
+        // --- Chart.js setup for Frequency Spectrum ---
+        const ctxFreq = document.getElementById('fftSpectrumChart').getContext('2d');
+        let fftSpectrumChart = new Chart(ctxFreq, {
+            type: 'line',
+            data: {
+                labels: [], // Frequencies (in MHz)
+                datasets: [{
+                    label: 'Power (dBm)',
+                    data: [], // Power levels
+                    borderColor: 'rgb(255, 99, 132)', // Reddish pink
+                    borderWidth: 1.5,
+                    tension: 0.1,
+                    pointRadius: 0,
+                }]
+            },
+            options: {
+                animation: false,
+                responsive: true,
+                maintainAspectRatio: true,
+                scales: {
+                    x: {
+                        title: { display: true, text: 'Frequency (MHz)', color: '#ccc' },
+                        ticks: { color: '#ccc', maxTicksLimit: 10 },
+                        grid: { color: 'rgba(255,255,255,0.1)' }
+                    },
+                    y: {
+                        title: { display: true, text: 'Power (dBm)', color: '#ccc' },
+                        ticks: { color: '#ccc' },
+                        grid: { color: 'rgba(255,255,255,0.1)' },
+                        suggestedMin: -100, // Initial suggestion
+                        suggestedMax: 0     // Initial suggestion
+                    }
+                },
+                plugins: {
+                    legend: { labels: { color: '#ccc' } }
+                }
+            }
+        });
+
+        // WebSocket setup
+        const rfWsScheme = window.location.protocol === "https:" ? "wss" : "ws";
+        const rfWsPath = rfWsScheme + '://' + window.location.host + '/ws/rf_spectrum/'; // Matches users/routing.py
+        console.log("RF Simulator: Connecting to WebSocket:", rfWsPath);
+        const rfSocket = new WebSocket(rfWsPath);
+
+        rfSocket.onopen = function(e) {
+            console.log('RF Simulator: WebSocket connection opened!');
+            rfStatusSpan.textContent = 'Status: Connected. Ready.';
+        };
+
+        rfSocket.onmessage = function(e) {
+            const data = JSON.parse(e.data);
+            // console.log('RF Simulator: Message from server:', data); // Can be very verbose
+
+            if (data.type === 'rf_simulated_data') {
+                const payload = data.payload;
+
+                // Update Time-Domain Chart
+                if (payload.time_s && payload.amplitude_v && payload.wave_details) {
+                    waveformChart.data.labels = payload.time_s.map(t => (t * 1e6).toFixed(3)); // Time in µs
+                    waveformChart.data.datasets[0].data = payload.amplitude_v;
+                    const maxAmp = Math.max(0.1, Math.abs(payload.wave_details.wave_amplitude_v) * 1.2 || 1.5);
+                    waveformChart.options.scales.y.min = -maxAmp;
+                    waveformChart.options.scales.y.max = maxAmp;
+                    waveformChart.update('none'); // 'none' for no animation
+                }
+
+                // Update Frequency Spectrum Chart
+                if (payload.fft_frequencies_hz && payload.fft_power_dbm && payload.spectrum_details) {
+                    fftSpectrumChart.data.labels = payload.fft_frequencies_hz.map(f => (f / 1e6).toFixed(2)); // Freq in MHz
+                    fftSpectrumChart.data.datasets[0].data = payload.fft_power_dbm;
+                    const refLevel = payload.spectrum_details.ref_level_dbm || -20;
+                    fftSpectrumChart.options.scales.y.min = refLevel - 80; // Show 80dB dynamic range below ref
+                    fftSpectrumChart.options.scales.y.max = refLevel;
+                    fftSpectrumChart.update('none');
+                }
+                if (payload.wave_details && payload.spectrum_details){
+                    rfStatusSpan.textContent = `Status: Displaying (Time Points: ${payload.wave_details.num_points_time}, FFT Bins: ${payload.spectrum_details.num_points_fft})`;
+                }
+
+
+            } else if (data.type === 'command_response' || data.type === 'status_update' || data.type === 'error_response') {
+                rfStatusSpan.textContent = `Status: ${data.message}`;
+                console.log("RF Simulator: Server status/response:", data.message);
+            }
+        };
+
+        rfSocket.onclose = function(e) {
+            console.error('RF Simulator: WebSocket connection closed:', e);
+            rfStatusSpan.textContent = `Status: Disconnected - Code: ${e.code}, Reason: ${e.reason || 'N/A'}`;
+        };
+
+        rfSocket.onerror = function(e) {
+            console.error('RF Simulator: WebSocket error:', e);
+            rfStatusSpan.textContent = 'Status: WebSocket error. Check console.';
+        };
+
+        // --- Send Commands ---
+        function sendRfCommand(command, params = {}) {
+            if (rfSocket.readyState === WebSocket.OPEN) {
+                rfSocket.send(JSON.stringify({
+                    'command_type': 'rf_control',
+                    'command': command,
+                    'params': params
+                }));
+                 rfStatusSpan.textContent = `Status: Sent command '${command}'...`;
+            } else {
+                console.error('RF Simulator: WebSocket is not open. Cannot send command.');
+                rfStatusSpan.textContent = 'Status: Error - WebSocket not open.';
+            }
+        }
+
+        startSimButton.onclick = () => sendRfCommand('start_simulation');
+        stopSimButton.onclick = () => sendRfCommand('stop_simulation');
+
+        configureCosineButton.onclick = () => {
+            const params = {
+                frequency_hz: parseFloat(document.getElementById('waveFreq').value) * 1e6,
+                amplitude_v: parseFloat(document.getElementById('waveAmp').value),
+                duration_s: parseFloat(document.getElementById('waveDuration').value) / 1e6, // convert µs to s
+                sample_rate_hz: parseFloat(document.getElementById('sampleRate').value) * 1e6, // convert MSa/s to Sa/s
+                noise_v: parseFloat(document.getElementById('noiseAmp').value)
+            };
+            sendRfCommand('configure_cosine', params);
+        };
+
+    </script>
+{% endblock %}

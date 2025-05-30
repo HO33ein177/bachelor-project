@@ -1,0 +1,135 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}Network Monitor{% endblock %}
+
+{% block extra_head %}
+<style>
+    /* Keep or move existing styles for .logout-btn */
+    .control-btn {
+        display: inline-block;
+        padding: 10px 15px;
+        background-color: #4CAF50; /* Green for start */
+        color: white;
+        text-decoration: none;
+        border-radius: 4px;
+        margin-top: 10px;
+        margin-right: 10px;
+        border: none;
+        cursor: pointer;
+    }
+    .control-btn.stop {
+        background-color: #f44336; /* Red for stop */
+    }
+    .control-btn:hover {
+        opacity: 0.8;
+    }
+    #capture-status {
+        margin-top: 10px;
+        font-style: italic;
+        color: #ccc;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+    <h1>Network Monitor</h1>
+
+    <div>
+        <button id="startButton" class="control-btn">Start Capture</button>
+        <button id="stopButton" class="control-btn stop">Stop Capture</button>
+        <span id="capture-status">Status: Idle</span>
+    </div>
+
+    <p style="margin-top:15px;">Live packet data will appear below:</p>
+    <div id="packet-log" style="height: 400px; overflow-y: scroll; border: 1px solid #ccc; background-color: #333; color: #eee; font-family: monospace; padding: 10px; margin-top: 10px;">
+        </div>
+    <a href="{% url 'users:logout' %}" class="logout-btn" style="background-color:#007bff; margin-top:15px;">Logout</a>
+
+
+    {% block scripts %}
+    <script>
+        console.log("Attempting WebSocket connection...");
+        const wsScheme = window.location.protocol === "https:" ? "wss" : "ws";
+        const wsPath = wsScheme + '://' + window.location.host + '/ws/network_data/';
+        console.log("Connecting to:", wsPath);
+        const networkSocket = new WebSocket(wsPath);
+
+        const logDiv = document.getElementById('packet-log');
+        const startButton = document.getElementById('startButton');
+        const stopButton = document.getElementById('stopButton');
+        const statusSpan = document.getElementById('capture-status');
+
+        networkSocket.onopen = function(e) {
+            console.log('WebSocket connection opened!');
+            const p = document.createElement('p');
+            p.style.color = 'lightgreen';
+            p.textContent = 'Connection established to server.';
+            logDiv.insertBefore(p, logDiv.firstChild); // Add to top
+            statusSpan.textContent = 'Status: Connected, Ready.';
+        };
+
+        networkSocket.onmessage = function(e) {
+            const data = JSON.parse(e.data);
+            console.log('Message from server:', data);
+
+            if (data.type === 'network_data') {
+                const message = data.payload;
+                const p = document.createElement('p');
+                const timestamp = new Date(message.timestamp * 1000).toLocaleTimeString();
+                p.textContent = `[${timestamp}] ${message.protocol}: ${message.source_ip} -> ${message.destination_ip}`;
+                logDiv.insertBefore(p, logDiv.firstChild); // Add new messages at the top
+                // Optional: Limit the number of log entries
+                if (logDiv.children.length > 200) { // Keep last 200 messages
+                    logDiv.removeChild(logDiv.lastChild);
+                }
+            } else if (data.type === 'status_update') {
+                statusSpan.textContent = `Status: ${data.message}`;
+            }
+        };
+
+        networkSocket.onclose = function(e) {
+            console.error('WebSocket connection closed unexpectedly:', e);
+            const p = document.createElement('p');
+            p.style.color = 'red';
+            p.textContent = `Connection closed: ${e.code} - ${e.reason || 'No reason provided'}`;
+            logDiv.insertBefore(p, logDiv.firstChild);
+            statusSpan.textContent = 'Status: Disconnected.';
+        };
+
+        networkSocket.onerror = function(e) {
+            console.error('WebSocket error:', e);
+            const p = document.createElement('p');
+            p.style.color = 'red';
+            p.textContent = 'WebSocket error occurred. Check console.';
+            logDiv.insertBefore(p, logDiv.firstChild);
+            statusSpan.textContent = 'Status: Error.';
+        }
+
+        // Send commands to the server
+        startButton.onclick = function(e) {
+            if (networkSocket.readyState === WebSocket.OPEN) {
+                networkSocket.send(JSON.stringify({
+                    'command': 'start_capture'
+                }));
+                statusSpan.textContent = 'Status: Start command sent...';
+            } else {
+                console.error('WebSocket is not open. Cannot send start command.');
+                statusSpan.textContent = 'Status: Error - WebSocket not open.';
+            }
+        };
+
+        stopButton.onclick = function(e) {
+            if (networkSocket.readyState === WebSocket.OPEN) {
+                networkSocket.send(JSON.stringify({
+                    'command': 'stop_capture'
+                }));
+                statusSpan.textContent = 'Status: Stop command sent...';
+            } else {
+                console.error('WebSocket is not open. Cannot send stop command.');
+                statusSpan.textContent = 'Status: Error - WebSocket not open.';
+            }
+        };
+
+    </script>
+    {% endblock %}
+{% endblock %}
