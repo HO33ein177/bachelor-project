@@ -4,7 +4,10 @@
 {% block title %}RF Simulator (Time & Spectrum){% endblock %}
 
 {% block extra_head %}
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script> <style>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@1.2.1/dist/chartjs-plugin-zoom.min.js"></script>
+    <style>
+        /* Existing styles from rf_scanner.html */
         .controls-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
@@ -89,34 +92,184 @@
             text-align: center;
             margin-bottom: 15px;
         }
+
+        /* --- NEW STYLES FOR POP-UP MENU --- */
+        .popup-controls-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.7); /* Dark overlay */
+            display: none; /* Hidden by default */
+            justify-content: center;
+            align-items: center;
+            z-index: 1000; /* Ensure it's on top of everything */
+        }
+
+        .popup-controls-content {
+            background-color: #1a1a1a; /* Dark background for the popup */
+            padding: 25px;
+            border-radius: 10px;
+            box-shadow: 0 0 20px rgba(0, 255, 255, 0.5); /* Glowing effect */
+            max-width: 500px; /* Max width for the popup */
+            width: 90%;
+            position: relative;
+            transform: scale(0.9); /* Slightly smaller initially */
+            transition: transform 0.3s ease-out; /* Smooth scale transition */
+            max-height: 80vh; /* Make it scrollable if content overflows */
+            overflow-y: auto; /* Enable vertical scrolling */
+        }
+        .popup-controls-overlay.active .popup-controls-content {
+            transform: scale(1); /* Scale to normal when active */
+        }
+
+        .popup-controls-content .close-btn {
+            position: absolute;
+            top: 10px;
+            right: 15px;
+            background: none;
+            border: none;
+            font-size: 1.5em;
+            color: #fff;
+            cursor: pointer;
+        }
+
+        .popup-controls-content h2 {
+            color: #00aaff;
+            text-align: center;
+            margin-bottom: 20px;
+            font-size: 1.8em;
+        }
+
+        /* Make controls grid more compact within the popup */
+        .popup-controls-content .controls-grid {
+            grid-template-columns: 1fr; /* Stack groups vertically in popup */
+            gap: 10px; /* Reduce gap */
+            margin-bottom: 15px;
+        }
+        .popup-controls-content .control-group {
+            padding: 10px; /* Reduce padding */
+            margin-bottom: 0;
+        }
+        .popup-controls-content .control-group label {
+            margin-top: 5px; /* Reduce margin */
+            margin-bottom: 2px;
+        }
+        .popup-controls-content .control-group input {
+            margin-bottom: 5px; /* Reduce margin */
+        }
+
+        /* Style for the trigger button */
+        #openControlsButton {
+            padding: 12px 25px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 1em;
+            margin: 20px auto;
+            display: block; /* Center the button */
+        }
+        #openControlsButton:hover {
+            background-color: #0056b3;
+        }
+
+        /* NEW STYLES for input pairs (min/max) */
+        .input-pair {
+            display: flex;
+            gap: 10px; /* Space between min and max inputs */
+            margin-bottom: 10px;
+        }
+        .input-pair > div {
+            flex: 1; /* Make each input container take equal space */
+        }
+        .input-pair label {
+            margin-bottom: 0; /* Adjust label margin within pair */
+        }
+        .input-pair input {
+            width: calc(100% - 10px); /* Adjust width in pair */
+        }
     </style>
 {% endblock %}
 
 {% block content %}
     <h1>Simulated RF Analyzer (Time Domain & Spectrum)</h1>
 
-    <div class="controls-grid">
-        <div class="control-group">
-            <h3>Simulation Control</h3>
-            <button id="startSimButton" class="control-btn">Start Simulation</button>
-            <button id="stopSimButton" class="control-btn stop">Stop Simulation</button>
-        </div>
+    <button id="openControlsButton">Open Controls</button>
 
-        <div class="control-group">
-            <h3>Cosine Wave Parameters</h3>
-            <label for="waveFreq">Frequency (MHz):</label>
-            <input type="number" id="waveFreq" value="10" step="1">
-            <label for="waveAmp">Amplitude (V):</label>
-            <input type="number" id="waveAmp" value="1.0" step="0.1">
-            <label for="waveDuration">Sample Duration (µs):</label>
-            <input type="number" id="waveDuration" value="2" step="0.5">
-            <label for="sampleRate">Sample Rate (MSa/s):</label>
-            <input type="number" id="sampleRate" value="500" step="50">
-            <label for="noiseAmp">Noise Amplitude (V):</label>
-            <input type="number" id="noiseAmp" value="0.1" step="0.01">
-            <button id="configureCosineButton" class="control-btn">Apply Wave Settings</button>
+    <div class="popup-controls-overlay" id="popupControls">
+        <div class="popup-controls-content">
+            <button class="close-btn" id="closeControlsButton">&times;</button>
+            <h2>Analyzer Controls</h2>
+
+            <div class="controls-grid">
+                <div class="control-group">
+                    <h3>Simulation Control</h3>
+                    <button id="startSimButton" class="control-btn">Start Simulation</button>
+                    <button id="stopSimButton" class="control-btn stop">Stop Simulation</button>
+                </div>
+
+                <div class="control-group">
+                    <h3>Cosine Wave Parameters</h3>
+                    <label for="waveFreq">Frequency (MHz):</label>
+                    <input type="number" id="waveFreq" value="10" step="1">
+                    <label for="waveAmp">Amplitude (V):</label>
+                    <input type="number" id="waveAmp" value="1.0" step="0.1">
+                    <label for="waveDuration">Sample Duration (µs):</label>
+                    <input type="number" id="waveDuration" value="2" step="0.5">
+                    <label for="sampleRate">Sample Rate (MSa/s):</label>
+                    <input type="number" id="sampleRate" value="500" step="50">
+                    <label for="noiseAmp">Noise Amplitude (V):</label>
+                    <input type="number" id="noiseAmp" value="0.1" step="0.01">
+                    <button id="configureCosineButton" class="control-btn">Apply Wave Settings</button>
+                </div>
+
+                <div class="control-group">
+                    <h3>Chart Scaling</h3>
+                    <h4>Time Domain (Amplitude)</h4>
+                    <div class="input-pair">
+                        <div>
+                            <label for="timeAmpMin">Min (V):</label>
+                            <input type="number" id="timeAmpMin" step="0.1">
+                        </div>
+                        <div>
+                            <label for="timeAmpMax">Max (V):</label>
+                            <input type="number" id="timeAmpMax" step="0.1">
+                        </div>
+                    </div>
+
+                    <h4>Frequency Spectrum (Power)</h4>
+                    <div class="input-pair">
+                        <div>
+                            <label for="freqPowerMin">Min (dBm):</label>
+                            <input type="number" id="freqPowerMin" step="5">
+                        </div>
+                        <div>
+                            <label for="freqPowerMax">Max (dBm):</label>
+                            <input type="number" id="freqPowerMax" step="5">
+                        </div>
+                    </div>
+
+                    <h4>Frequency Spectrum (Frequency)</h4>
+                    <div class="input-pair">
+                        <div>
+                            <label for="freqAxisMin">Min (MHz):</label>
+                            <input type="number" id="freqAxisMin" step="10">
+                        </div>
+                        <div>
+                            <label for="freqAxisMax">Max (MHz):</label>
+                            <input type="number" id="freqAxisMax" step="10">
+                        </div>
+                    </div>
+                    <button id="applyChartScaleButton" class="control-btn">Apply Scale</button>
+                    <button id="autoscaleChartButton" class="control-btn">Autoscale</button>
+                </div>
+            </div>
         </div>
     </div>
+
     <div id="rf-status">Status: Idle</div>
 
     <div class="chart-pair-container">
@@ -131,30 +284,48 @@
     </div>
 
     <script>
+        // --- EXISTING JAVASCRIPT ---
         const rfStatusSpan = document.getElementById('rf-status');
         const startSimButton = document.getElementById('startSimButton');
         const stopSimButton = document.getElementById('stopSimButton');
         const configureCosineButton = document.getElementById('configureCosineButton');
+
+        // --- POP-UP JAVASCRIPT ---
+        const openControlsButton = document.getElementById('openControlsButton');
+        const closeControlsButton = document.getElementById('closeControlsButton');
+        const popupControls = document.getElementById('popupControls');
+
+        openControlsButton.onclick = () => {
+            popupControls.style.display = 'flex';
+            popupControls.classList.add('active');
+        };
+
+        closeControlsButton.onclick = () => {
+            popupControls.classList.remove('active');
+            setTimeout(() => {
+                popupControls.style.display = 'none';
+            }, 300);
+        };
 
         // --- Chart.js setup for Time-Domain Waveform ---
         const ctxTime = document.getElementById('waveformChart').getContext('2d');
         let waveformChart = new Chart(ctxTime, {
             type: 'line',
             data: {
-                labels: [], // Time points (in µs)
+                labels: [],
                 datasets: [{
                     label: 'Amplitude (V)',
-                    data: [], // Amplitude values
-                    borderColor: 'rgb(120, 190, 255)', // Light blue / cyan
+                    data: [],
+                    borderColor: 'rgb(120, 190, 255)',
                     borderWidth: 1.5,
-                    tension: 0.1, // Slight smoothing
-                    pointRadius: 0, // No dots on the line
+                    tension: 0.1,
+                    pointRadius: 0,
                 }]
             },
             options: {
                 animation: false,
                 responsive: true,
-                maintainAspectRatio: true, // You can set to false if you want to control aspect ratio via CSS height/width of canvas parent
+                maintainAspectRatio: true,
                 scales: {
                     x: {
                         title: { display: true, text: 'Time (µs)', color: '#ccc' },
@@ -165,12 +336,31 @@
                         title: { display: true, text: 'Amplitude (V)', color: '#ccc' },
                         ticks: { color: '#ccc' },
                         grid: { color: 'rgba(255,255,255,0.1)' },
-                        suggestedMin: -1.5, // Initial suggestion
-                        suggestedMax: 1.5  // Initial suggestion
+                        suggestedMin: -1.5,
+                        suggestedMax: 1.5,
+                        min: undefined,
+                        max: undefined
                     }
                 },
                 plugins: {
-                    legend: { labels: { color: '#ccc' } }
+                    legend: { labels: { color: '#ccc' } },
+                    // ADD ZOOM PLUGIN CONFIGURATION FOR WAVEFORM CHART
+                    zoom: {
+                        pan: {
+                            enabled: true,
+                            mode: 'x', // Pan along the X-axis (time)
+                            threshold: 10 // Minimum drag distance to pan
+                        },
+                        zoom: {
+                            wheel: {
+                                enabled: true, // Enable zooming with mouse wheel
+                            },
+                            pinch: {
+                                enabled: true // Enable zooming with pinch gestures on touch devices
+                            },
+                            mode: 'x', // Zoom along the X-axis (time)
+                        }
+                    }
                 }
             }
         });
@@ -180,11 +370,11 @@
         let fftSpectrumChart = new Chart(ctxFreq, {
             type: 'line',
             data: {
-                labels: [], // Frequencies (in MHz)
+                labels: [],
                 datasets: [{
                     label: 'Power (dBm)',
-                    data: [], // Power levels
-                    borderColor: 'rgb(255, 99, 132)', // Reddish pink
+                    data: [],
+                    borderColor: 'rgb(255, 99, 132)',
                     borderWidth: 1.5,
                     tension: 0.1,
                     pointRadius: 0,
@@ -198,25 +388,46 @@
                     x: {
                         title: { display: true, text: 'Frequency (MHz)', color: '#ccc' },
                         ticks: { color: '#ccc', maxTicksLimit: 10 },
-                        grid: { color: 'rgba(255,255,255,0.1)' }
+                        grid: { color: 'rgba(255,255,255,0.1)' },
+                        min: undefined,
+                        max: undefined
                     },
                     y: {
                         title: { display: true, text: 'Power (dBm)', color: '#ccc' },
                         ticks: { color: '#ccc' },
                         grid: { color: 'rgba(255,255,255,0.1)' },
-                        suggestedMin: -100, // Initial suggestion
-                        suggestedMax: 0     // Initial suggestion
+                        suggestedMin: -100,
+                        suggestedMax: 0,
+                        min: undefined,
+                        max: undefined
                     }
                 },
                 plugins: {
-                    legend: { labels: { color: '#ccc' } }
+                    legend: { labels: { color: '#ccc' } },
+                    // ADD ZOOM PLUGIN CONFIGURATION FOR FFT CHART
+                    zoom: {
+                        pan: {
+                            enabled: true,
+                            mode: 'x', // Pan along the X-axis (frequency)
+                            threshold: 10
+                        },
+                        zoom: {
+                            wheel: {
+                                enabled: true,
+                            },
+                            pinch: {
+                                enabled: true
+                            },
+                            mode: 'x', // Zoom along the X-axis (frequency)
+                        }
+                    }
                 }
             }
         });
 
-        // WebSocket setup
+        // WebSocket setup (with existing debugging)
         const rfWsScheme = window.location.protocol === "https:" ? "wss" : "ws";
-        const rfWsPath = rfWsScheme + '://' + window.location.host + '/ws/rf_spectrum/'; // Matches users/routing.py
+        const rfWsPath = rfWsScheme + '://' + window.location.host + '/ws/rf_spectrum/';
         console.log("RF Simulator: Connecting to WebSocket:", rfWsPath);
         const rfSocket = new WebSocket(rfWsPath);
 
@@ -226,39 +437,58 @@
         };
 
         rfSocket.onmessage = function(e) {
-            const data = JSON.parse(e.data);
-            // console.log('RF Simulator: Message from server:', data); // Can be very verbose
+            console.log('Raw WebSocket message received:', e.data);
 
-            if (data.type === 'rf_simulated_data') {
-                const payload = data.payload;
+            try {
+                const data = JSON.parse(e.data);
+                console.log('Parsed WebSocket data object:', data);
+                console.log('Message Type received:', data.type);
 
-                // Update Time-Domain Chart
-                if (payload.time_s && payload.amplitude_v && payload.wave_details) {
-                    waveformChart.data.labels = payload.time_s.map(t => (t * 1e6).toFixed(3)); // Time in µs
-                    waveformChart.data.datasets[0].data = payload.amplitude_v;
-                    const maxAmp = Math.max(0.1, Math.abs(payload.wave_details.wave_amplitude_v) * 1.2 || 1.5);
-                    waveformChart.options.scales.y.min = -maxAmp;
-                    waveformChart.options.scales.y.max = maxAmp;
-                    waveformChart.update('none'); // 'none' for no animation
+                if (data.type === 'rf_simulated_data') {
+                    const payload = data.payload;
+                    console.log('Received RF Spectrum Update (Payload):', payload);
+
+                    // Update Time-Domain Chart
+                    if (payload.time_s && payload.amplitude_v && payload.wave_details) {
+                        waveformChart.data.labels = payload.time_s.map(t => (t * 1e6).toFixed(3)); // Time in µs
+                        waveformChart.data.datasets[0].data = payload.amplitude_v;
+                        const maxAmp = Math.max(0.1, Math.abs(payload.wave_details.amplitude_v) * 1.2 || 1.5);
+                        // Only apply suggestedMin/Max if min/max are not manually set
+                        if (waveformChart.options.scales.y.min === undefined && waveformChart.options.scales.y.max === undefined) {
+                            waveformChart.options.scales.y.suggestedMin = -maxAmp; // Use suggested for autoscale
+                            waveformChart.options.scales.y.suggestedMax = maxAmp;  // Use suggested for autoscale
+                        }
+                        waveformChart.update('none');
+                    }
+
+                    // Update Frequency Spectrum Chart
+                    if (payload.fft_frequencies_hz && payload.fft_power_dbm && payload.spectrum_details) {
+                        fftSpectrumChart.data.labels = payload.fft_frequencies_hz.map(f => (f / 1e6).toFixed(2)); // Freq in MHz
+                        fftSpectrumChart.data.datasets[0].data = payload.fft_power_dbm;
+                        const refLevel = payload.spectrum_details.ref_level_dbm || -20;
+                        // Only apply suggestedMin/Max if min/max are not manually set
+                        if (fftSpectrumChart.options.scales.y.min === undefined && fftSpectrumChart.options.scales.y.max === undefined) {
+                            fftSpectrumChart.options.scales.y.suggestedMin = refLevel - 80;
+                            fftSpectrumChart.options.scales.y.suggestedMax = refLevel;
+                        }
+                        // Only apply suggestedMin/Max for X-axis if min/max are not manually set
+                        if (fftSpectrumChart.options.scales.x.min === undefined && fftSpectrumChart.options.scales.x.max === undefined) {
+                            // Automatically scale X-axis based on actual data range
+                            fftSpectrumChart.options.scales.x.suggestedMin = parseFloat(payload.fft_frequencies_hz[0] / 1e6);
+                            fftSpectrumChart.options.scales.x.suggestedMax = parseFloat(payload.fft_frequencies_hz[payload.fft_frequencies_hz.length - 1] / 1e6);
+                        }
+                        fftSpectrumChart.update('none');
+                    }
+                    if (payload.wave_details && payload.spectrum_details){
+                        rfStatusSpan.textContent = `Status: Displaying (Time Points: ${payload.wave_details.num_points_time}, FFT Bins: ${payload.spectrum_details.num_points_fft})`;
+                    }
+
+                } else if (data.type === 'command_response' || data.type === 'status_update' || data.type === 'error_response') {
+                    rfStatusSpan.textContent = `Status: ${data.message}`;
+                    console.log("RF Simulator: Server status/response:", data.message);
                 }
-
-                // Update Frequency Spectrum Chart
-                if (payload.fft_frequencies_hz && payload.fft_power_dbm && payload.spectrum_details) {
-                    fftSpectrumChart.data.labels = payload.fft_frequencies_hz.map(f => (f / 1e6).toFixed(2)); // Freq in MHz
-                    fftSpectrumChart.data.datasets[0].data = payload.fft_power_dbm;
-                    const refLevel = payload.spectrum_details.ref_level_dbm || -20;
-                    fftSpectrumChart.options.scales.y.min = refLevel - 80; // Show 80dB dynamic range below ref
-                    fftSpectrumChart.options.scales.y.max = refLevel;
-                    fftSpectrumChart.update('none');
-                }
-                if (payload.wave_details && payload.spectrum_details){
-                    rfStatusSpan.textContent = `Status: Displaying (Time Points: ${payload.wave_details.num_points_time}, FFT Bins: ${payload.spectrum_details.num_points_fft})`;
-                }
-
-
-            } else if (data.type === 'command_response' || data.type === 'status_update' || data.type === 'error_response') {
-                rfStatusSpan.textContent = `Status: ${data.message}`;
-                console.log("RF Simulator: Server status/response:", data.message);
+            } catch (error) {
+                console.error("Error parsing or processing WebSocket message:", error, "Raw data:", e.data);
             }
         };
 
@@ -299,6 +529,74 @@
                 noise_v: parseFloat(document.getElementById('noiseAmp').value)
             };
             sendRfCommand('configure_cosine', params);
+        };
+
+        // --- JAVASCRIPT FOR CHART SCALING ---
+        const timeAmpMinInput = document.getElementById('timeAmpMin');
+        const timeAmpMaxInput = document.getElementById('timeAmpMax');
+        const freqPowerMinInput = document.getElementById('freqPowerMin');
+        const freqPowerMaxInput = document.getElementById('freqPowerMax');
+        const freqAxisMinInput = document.getElementById('freqAxisMin');
+        const freqAxisMaxInput = document.getElementById('freqAxisMax');
+        const applyChartScaleButton = document.getElementById('applyChartScaleButton');
+        const autoscaleChartButton = document.getElementById('autoscaleChartButton');
+
+        applyChartScaleButton.onclick = () => {
+            // Apply scale to Time Domain (Amplitude)
+            waveformChart.options.scales.y.min = timeAmpMinInput.value === "" ? undefined : parseFloat(timeAmpMinInput.value);
+            waveformChart.options.scales.y.max = timeAmpMaxInput.value === "" ? undefined : parseFloat(timeAmpMaxInput.value);
+            waveformChart.options.scales.y.suggestedMin = undefined; // Clear suggested values when manual set
+            waveformChart.options.scales.y.suggestedMax = undefined;
+
+            // Apply scale to Frequency Spectrum (Power)
+            fftSpectrumChart.options.scales.y.min = freqPowerMinInput.value === "" ? undefined : parseFloat(freqPowerMinInput.value);
+            fftSpectrumChart.options.scales.y.max = freqPowerMaxInput.value === "" ? undefined : parseFloat(freqPowerMaxInput.value);
+            fftSpectrumChart.options.scales.y.suggestedMin = undefined; // Clear suggested values
+            fftSpectrumChart.options.scales.y.suggestedMax = undefined;
+
+            // Apply scale to Frequency Spectrum (Frequency X-axis)
+            fftSpectrumChart.options.scales.x.min = freqAxisMinInput.value === "" ? undefined : parseFloat(freqAxisMinInput.value);
+            fftSpectrumChart.options.scales.x.max = freqAxisMaxInput.value === "" ? undefined : parseFloat(freqAxisMaxInput.value);
+            fftSpectrumChart.options.scales.x.suggestedMin = undefined; // Clear suggested values
+            fftSpectrumChart.options.scales.x.suggestedMax = undefined;
+
+
+            // Trigger updates after applying new scale options
+            waveformChart.update();
+            fftSpectrumChart.update();
+            rfStatusSpan.textContent = "Status: Chart scale applied.";
+        };
+
+        autoscaleChartButton.onclick = () => {
+            // Clear inputs
+            timeAmpMinInput.value = "";
+            timeAmpMaxInput.value = "";
+            freqPowerMinInput.value = "";
+            freqPowerMaxInput.value = "";
+            freqAxisMinInput.value = "";
+            freqAxisMaxInput.value = "";
+
+            // Reset chart options to undefined for autoscale
+            waveformChart.options.scales.y.min = undefined;
+            waveformChart.options.scales.y.max = undefined;
+            waveformChart.options.scales.y.suggestedMin = undefined; // Reset suggested as well
+            waveformChart.options.scales.y.suggestedMax = undefined;
+
+            fftSpectrumChart.options.scales.y.min = undefined;
+            fftSpectrumChart.options.scales.y.max = undefined;
+            fftSpectrumChart.options.scales.y.suggestedMin = undefined; // Reset suggested
+            fftSpectrumChart.options.scales.y.suggestedMax = undefined;
+
+            fftSpectrumChart.options.scales.x.min = undefined;
+            fftSpectrumChart.options.scales.x.max = undefined;
+            fftSpectrumChart.options.scales.x.suggestedMin = undefined; // Reset suggested
+            fftSpectrumChart.options.scales.x.suggestedMax = undefined;
+
+
+            // Trigger updates after resetting options
+            waveformChart.update();
+            fftSpectrumChart.update();
+            rfStatusSpan.textContent = "Status: Chart autoscale enabled.";
         };
 
     </script>

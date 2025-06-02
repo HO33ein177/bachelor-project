@@ -5,21 +5,23 @@ import threading
 import time
 from flask import Flask, request as flask_request, jsonify
 
-from agent_hal import RFHardwareSimulator  # Assuming agent_hal.py is in the same directory
+from agent_hal import RFHardwareSimulator
 
 # --- Configuration ---
-DJANGO_SIM_DATA_API_ENDPOINT = "http://127.0.0.1:8000/users/api/receive_rf_data/"  # We can reuse this endpoint
+DJANGO_SIM_DATA_API_ENDPOINT = "http://127.0.0.1:8000/users/api/receive_rf_data/"
 AGENT_CONTROL_API_PORT = 8001
 
 # --- Global state for RF simulation ---
 sim_active = False
 sim_thread = None
-sim_interval_seconds = 0.1  # How often to generate and send a new trace (faster for waveform)
+sim_interval_seconds = 0.1
 
+# --- Global instance of the hardware simulator ---
+rf_simulator_instance = RFHardwareSimulator()
 
 def send_to_django_backend(endpoint, data_payload):
     try:
-        response = requests.post(endpoint, json=data_payload, timeout=3)
+        response = requests.post(endpoint, json=data_payload, timeout=10)
         response.raise_for_status()
     except requests.exceptions.RequestException as e:
         print(f"Agent: Error sending data to {endpoint}: {e}", end='\r')
@@ -30,12 +32,11 @@ def simulation_loop():
     global sim_active
     print("Agent: Simulation Loop Thread started.")
     while sim_active:
-        # Calls the renamed method in the simulator
-        sim_data = RFHardwareSimulator.get_simulated_data() # UPDATED
+        sim_data = rf_simulator_instance.get_simulated_data()
         if sim_data:
             send_to_django_backend(DJANGO_SIM_DATA_API_ENDPOINT, sim_data)
-        time.sleep(sim_interval_seconds)  # Keep this delay reasonable
-        print("Agent: Simulation Loop Thread finished.")
+        time.sleep(sim_interval_seconds)
+    print("Agent: Simulation Loop Thread finished.")
 
 
 # --- Flask App for Agent Control API ---
@@ -74,24 +75,34 @@ def handle_configure_cosine():
         return jsonify({"error": "Missing JSON payload"}), 400
 
     try:
-        # Convert to float, provide defaults if keys are missing
-        freq_hz = float(data.get('frequency_hz', RFHardwareSimulator.cosine_frequency_hz))
-        amp_v = float(data.get('amplitude_v', RFHardwareSimulator.cosine_amplitude_v))
-        duration_s = float(data.get('duration_s', RFHardwareSimulator.time_duration_s))
-        sample_rate_hz = float(data.get('sample_rate_hz', RFHardwareSimulator.sample_rate_hz))
-        noise_v = float(data.get('noise_v', RFHardwareSimulator.noise_amplitude_v))
+        # Extract parameters directly from the received JSON payload
+        freq_hz_input = float(data.get('frequency_hz', rf_simulator_instance.cosine_frequency_hz))
+        amp_v_input = float(data.get('amplitude_v', rf_simulator_instance.cosine_amplitude_v))
+        duration_s_input = float(data.get('duration_s', rf_simulator_instance.time_duration_s)) # This is total duration from frontend
+        sample_rate_hz_input = float(data.get('sample_rate_hz', rf_simulator_instance.sample_rate_hz)) # This is sample rate from frontend
+        noise_v_input = float(data.get('noise_v', rf_simulator_instance.noise_amplitude_v))
 
-        success = RFHardwareSimulator.configure_cosine_wave(
-            frequency_hz=freq_hz,
-            amplitude_v=amp_v,
-            duration_s=duration_s,
-            sample_rate_hz=sample_rate_hz,
-            noise_v=noise_v
+        # Calculate the number of points based on the desired total duration and sample rate
+        calculated_num_time_points = int(duration_s_input * sample_rate_hz_input)
+        if calculated_num_time_points <= 0: # Ensure positive number of points
+            calculated_num_time_points = rf_simulator_instance.num_time_points # Fallback
+
+        # Calculate time_per_div_s that agent_hal expects for its configuration
+        # This should be total duration divided by the number of horizontal divisions (usually 10)
+        configured_time_per_div_s = duration_s_input / rf_simulator_instance.num_horizontal_divisions
+
+        # Call the configure_cosine_wave method on the simulator instance
+        success = rf_simulator_instance.configure_cosine_wave(
+            frequency_hz=freq_hz_input,
+            amplitude_v=amp_v_input,
+            time_per_div_s=configured_time_per_div_s, # Correctly pass time_per_div_s
+            num_time_points=calculated_num_time_points, # Correctly pass calculated num_time_points
+            noise_v=noise_v_input
         )
         if success:
-            return jsonify({"status": "Cosine wave parameters configured"}), 200
+            return jsonify({"status": "Cosine wave & display parameters configured"}), 200
         else:
-            return jsonify({"error": "Failed to configure cosine wave (device not connected?)"}), 500
+            return jsonify({"error": "Failed to configure cosine wave (simulator error)"}), 500
     except ValueError:
         return jsonify({"error": "Invalid data type for parameters."}), 400
     except Exception as e:
@@ -117,37 +128,5 @@ if __name__ == '__main__':
         sim_active = False
         if sim_thread and sim_thread.is_alive():
             sim_thread.join(timeout=2)
+        rf_simulator_instance.disconnect()
     print("Agent script finished.")
-
-
-@agent_api_app.route('/configure_cosine', methods=['POST'])
-def handle_configure_cosine():
-    data = flask_request.get_json()
-    if not data: # ... (error check) ...
-        return jsonify({"error": "Missing JSON payload"}), 400
-
-    try:
-        freq_hz = float(data.get('frequency_hz', RFHardwareSimulator.cosine_frequency_hz))
-        amp_v = float(data.get('amplitude_v', RFHardwareSimulator.cosine_amplitude_v))
-        # New parameters for oscilloscope-like control
-        time_per_div_s = float(data.get('time_per_div_s', RFHardwareSimulator.time_per_div_s))
-        num_time_points = int(data.get('num_time_points', RFHardwareSimulator.num_time_points))
-        noise_v = float(data.get('noise_v', RFHardwareSimulator.noise_amplitude_v))
-
-        success = RFHardwareSimulator.configure_cosine_wave(
-            frequency_hz=freq_hz,
-            amplitude_v=amp_v,
-            time_per_div_s=time_per_div_s, # Pass new param
-            num_time_points=num_time_points, # Pass new param
-            noise_v=noise_v
-        )
-        # ... (rest of success/error handling) ...
-        if success:
-            return jsonify({"status": "Cosine wave & display parameters configured"}), 200
-        else:
-            return jsonify({"error": "Failed to configure (device not connected?)"}), 500
-    except ValueError:
-        return jsonify({"error": "Invalid data type for parameters."}), 400
-    except Exception as e:
-        print(f"Agent API: Error in /configure_cosine: {e}")
-        return jsonify({"error": "Internal server error"}), 500

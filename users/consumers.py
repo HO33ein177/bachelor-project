@@ -7,9 +7,11 @@ from channels.generic.websocket import AsyncWebsocketConsumer
 # Define a group name clients will join
 NETWORK_DATA_GROUP_NAME = 'network_data_group'
 AGENT_API_URL = "http://127.0.0.1:8001" # Agent's own API (different port from Django)
+# AGENT_API_URL = "http://192.168.227.137:8001" # Agent's own API (different port from Django)
 
 RF_SPECTRUM_GROUP_NAME = 'rf_spectrum_group'
 AGENT_CONTROL_API_URL = "http://127.0.0.1:8001" # Agent's own API
+# AGENT_CONTROL_API_URL = "http://192.168.227.137:8001" # Agent's own API
 
 
 
@@ -217,7 +219,7 @@ class RFSpectrumConsumer(AsyncWebsocketConsumer):
 
     async def rf_spectrum_update(self, event):  # This method name is tied to the 'type' in group_send
         rf_data = event['message']
-        # print(f"RFSpectrumConsumer: Sending RF (Time Domain) data to WebSocket {self.channel_name}")
+        print(f"RFSpectrumConsumer: Sending RF (Time Domain) data to WebSocket {self.channel_name}: {rf_data}")
         try:
             await self.send(text_data=json.dumps({
                 'type': 'rf_simulated_data', # More generic type now

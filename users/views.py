@@ -117,8 +117,10 @@ def receive_packet_view(request):
 @csrf_exempt
 @require_POST
 def receive_rf_data_view(request):
+    print("receive_rf_data_view was hit by agent!") # ADD THIS LINE
     try:
         data = json.loads(request.body)
+        print(f"receive_rf_data_view received data: {data}") # ADD THIS LINE
         # Update required_keys for the combined time and frequency domain data
         required_keys = [
             "time_s", "amplitude_v", "wave_details", # Time domain
