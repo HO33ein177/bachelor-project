@@ -5,9 +5,10 @@ import threading
 import time
 from flask import Flask, request as flask_request, jsonify
 
-from agent_hal import RFHardwareSimulator
+from agent_hal import RFHardwareSimulator # Or agent_hal_hardware if you're using that version
 
 # --- Configuration ---
+# Ensure this points to your Django server (your laptop's IP if agent is on Pi, or 127.0.0.1 if both are on laptop)
 DJANGO_SIM_DATA_API_ENDPOINT = "http://127.0.0.1:8000/users/api/receive_rf_data/"
 AGENT_CONTROL_API_PORT = 8001
 
@@ -17,11 +18,12 @@ sim_thread = None
 sim_interval_seconds = 0.1
 
 # --- Global instance of the hardware simulator ---
+# If using the hardware version, remember to put your VISA descriptor here
 rf_simulator_instance = RFHardwareSimulator()
 
 def send_to_django_backend(endpoint, data_payload):
     try:
-        response = requests.post(endpoint, json=data_payload, timeout=10)
+        response = requests.post(endpoint, json=data_payload, timeout=10) # Increased timeout
         response.raise_for_status()
     except requests.exceptions.RequestException as e:
         print(f"Agent: Error sending data to {endpoint}: {e}", end='\r')
@@ -49,6 +51,12 @@ def handle_start_simulation():
     if sim_active and sim_thread and sim_thread.is_alive():
         return jsonify({"status": "Simulation already active"}), 200
 
+    # Ensure simulator is connected if it has a connect method (for hardware HAL)
+    if hasattr(rf_simulator_instance, 'connected') and not rf_simulator_instance.connected:
+        print("Agent API: Attempting to connect simulator...")
+        if not rf_simulator_instance.connect():
+            return jsonify({"status": "Error: Could not connect to simulator/hardware."}), 500
+
     sim_active = True
     sim_thread = threading.Thread(target=simulation_loop, daemon=True)
     sim_thread.start()
@@ -75,28 +83,35 @@ def handle_configure_cosine():
         return jsonify({"error": "Missing JSON payload"}), 400
 
     try:
-        # Extract parameters directly from the received JSON payload
+        # Extract parameters for MAIN wave
         freq_hz_input = float(data.get('frequency_hz', rf_simulator_instance.cosine_frequency_hz))
         amp_v_input = float(data.get('amplitude_v', rf_simulator_instance.cosine_amplitude_v))
-        duration_s_input = float(data.get('duration_s', rf_simulator_instance.time_duration_s)) # This is total duration from frontend
-        sample_rate_hz_input = float(data.get('sample_rate_hz', rf_simulator_instance.sample_rate_hz)) # This is sample rate from frontend
+
+        # Extract parameters for SECONDARY wave
+        freq_hz2_input = float(data.get('frequency_hz2', rf_simulator_instance.cosine2_frequency_hz)) # New param
+        amp_v2_input = float(data.get('amplitude_v2', rf_simulator_instance.cosine2_amplitude_v))     # New param
+
+        # Extract other common parameters
+        duration_s_input = float(data.get('duration_s', rf_simulator_instance.time_duration_s))
+        sample_rate_hz_input = float(data.get('sample_rate_hz', rf_simulator_instance.sample_rate_hz))
         noise_v_input = float(data.get('noise_v', rf_simulator_instance.noise_amplitude_v))
 
-        # Calculate the number of points based on the desired total duration and sample rate
+        # Calculate number of points based on desired total duration and sample rate
         calculated_num_time_points = int(duration_s_input * sample_rate_hz_input)
-        if calculated_num_time_points <= 0: # Ensure positive number of points
-            calculated_num_time_points = rf_simulator_instance.num_time_points # Fallback
+        if calculated_num_time_points <= 0:
+            calculated_num_time_points = rf_simulator_instance.num_time_points
 
-        # Calculate time_per_div_s that agent_hal expects for its configuration
-        # This should be total duration divided by the number of horizontal divisions (usually 10)
+        # Calculate time_per_div_s for HAL configuration
         configured_time_per_div_s = duration_s_input / rf_simulator_instance.num_horizontal_divisions
 
-        # Call the configure_cosine_wave method on the simulator instance
+        # Call configure_cosine_wave on the simulator instance with new parameters
         success = rf_simulator_instance.configure_cosine_wave(
             frequency_hz=freq_hz_input,
             amplitude_v=amp_v_input,
-            time_per_div_s=configured_time_per_div_s, # Correctly pass time_per_div_s
-            num_time_points=calculated_num_time_points, # Correctly pass calculated num_time_points
+            frequency_hz2=freq_hz2_input, # Pass new param
+            amplitude_v2=amp_v2_input,   # Pass new param
+            time_per_div_s=configured_time_per_div_s,
+            num_time_points=calculated_num_time_points,
             noise_v=noise_v_input
         )
         if success:
@@ -128,5 +143,6 @@ if __name__ == '__main__':
         sim_active = False
         if sim_thread and sim_thread.is_alive():
             sim_thread.join(timeout=2)
-        rf_simulator_instance.disconnect()
+        if hasattr(rf_simulator_instance, 'disconnect'): # Call disconnect if method exists
+            rf_simulator_instance.disconnect()
     print("Agent script finished.")

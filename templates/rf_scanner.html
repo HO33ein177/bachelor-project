@@ -212,17 +212,23 @@
                 </div>
 
                 <div class="control-group">
-                    <h3>Cosine Wave Parameters</h3>
+                    <h3>Waveform Parameters</h3> <h4>Main Wave</h4>
                     <label for="waveFreq">Frequency (MHz):</label>
                     <input type="number" id="waveFreq" value="10" step="1">
                     <label for="waveAmp">Amplitude (V):</label>
                     <input type="number" id="waveAmp" value="1.0" step="0.1">
+                    <label for="noiseAmp">Noise Amplitude (V):</label>
+                    <input type="number" id="noiseAmp" value="0.1" step="0.01">
+
+                    <h4>Second Wave</h4>
+                    <label for="waveFreq2">Frequency (MHz):</label> <input type="number" id="waveFreq2" value="20" step="1">
+                    <label for="waveAmp2">Amplitude (V):</label> <input type="number" id="waveAmp2" value="0.5" step="0.1">
+
+                    <h4>Acquisition Settings</h4>
                     <label for="waveDuration">Sample Duration (µs):</label>
                     <input type="number" id="waveDuration" value="2" step="0.5">
                     <label for="sampleRate">Sample Rate (MSa/s):</label>
                     <input type="number" id="sampleRate" value="500" step="50">
-                    <label for="noiseAmp">Noise Amplitude (V):</label>
-                    <input type="number" id="noiseAmp" value="0.1" step="0.01">
                     <button id="configureCosineButton" class="control-btn">Apply Wave Settings</button>
                 </div>
 
@@ -313,13 +319,22 @@
             type: 'line',
             data: {
                 labels: [],
-                datasets: [{
-                    label: 'Amplitude (V)',
+                datasets: [{ // Dataset 0: Main Wave
+                    label: 'Main Wave (V)',
                     data: [],
-                    borderColor: 'rgb(120, 190, 255)',
+                    borderColor: 'rgb(120, 190, 255)', // Light blue / cyan
                     borderWidth: 1.5,
                     tension: 0.1,
                     pointRadius: 0,
+                },
+                { // Dataset 1: Secondary Wave (NEW)
+                    label: 'Second Wave (V)',
+                    data: [],
+                    borderColor: 'rgb(255, 165, 0)', // Orange for distinction
+                    borderWidth: 1.5,
+                    tension: 0.1,
+                    pointRadius: 0,
+                    hidden: false // Set to true to hide by default
                 }]
             },
             options: {
@@ -344,21 +359,20 @@
                 },
                 plugins: {
                     legend: { labels: { color: '#ccc' } },
-                    // ADD ZOOM PLUGIN CONFIGURATION FOR WAVEFORM CHART
                     zoom: {
                         pan: {
                             enabled: true,
-                            mode: 'x', // Pan along the X-axis (time)
-                            threshold: 10 // Minimum drag distance to pan
+                            mode: 'x',
+                            threshold: 10
                         },
                         zoom: {
                             wheel: {
-                                enabled: true, // Enable zooming with mouse wheel
+                                enabled: true,
                             },
                             pinch: {
-                                enabled: true // Enable zooming with pinch gestures on touch devices
+                                enabled: true
                             },
-                            mode: 'x', // Zoom along the X-axis (time)
+                            mode: 'x',
                         }
                     }
                 }
@@ -404,11 +418,10 @@
                 },
                 plugins: {
                     legend: { labels: { color: '#ccc' } },
-                    // ADD ZOOM PLUGIN CONFIGURATION FOR FFT CHART
                     zoom: {
                         pan: {
                             enabled: true,
-                            mode: 'x', // Pan along the X-axis (frequency)
+                            mode: 'x',
                             threshold: 10
                         },
                         zoom: {
@@ -418,14 +431,14 @@
                             pinch: {
                                 enabled: true
                             },
-                            mode: 'x', // Zoom along the X-axis (frequency)
+                            mode: 'x',
                         }
                     }
                 }
             }
         });
 
-        // WebSocket setup (with existing debugging)
+        // WebSocket setup
         const rfWsScheme = window.location.protocol === "https:" ? "wss" : "ws";
         const rfWsPath = rfWsScheme + '://' + window.location.host + '/ws/rf_spectrum/';
         console.log("RF Simulator: Connecting to WebSocket:", rfWsPath);
@@ -449,19 +462,30 @@
                     console.log('Received RF Spectrum Update (Payload):', payload);
 
                     // Update Time-Domain Chart
-                    if (payload.time_s && payload.amplitude_v && payload.wave_details) {
+                    if (payload.time_s && payload.amplitude_v_main && payload.wave_details) { // Changed to amplitude_v_main
                         waveformChart.data.labels = payload.time_s.map(t => (t * 1e6).toFixed(3)); // Time in µs
-                        waveformChart.data.datasets[0].data = payload.amplitude_v;
-                        const maxAmp = Math.max(0.1, Math.abs(payload.wave_details.amplitude_v) * 1.2 || 1.5);
+                        waveformChart.data.datasets[0].data = payload.amplitude_v_main; // Main wave
+                        // Update secondary wave if available
+                        if (payload.amplitude_v_secondary) {
+                            waveformChart.data.datasets[1].data = payload.amplitude_v_secondary; // Secondary wave
+                        }
+
+                        // Adjust suggested Y-axis limits based on *both* waves if both are present
+                        let combinedMaxAmp = Math.max(
+                            Math.max(...payload.amplitude_v_main.map(Math.abs)),
+                            payload.amplitude_v_secondary ? Math.max(...payload.amplitude_v_secondary.map(Math.abs)) : 0
+                        );
+                        combinedMaxAmp = Math.max(0.1, combinedMaxAmp * 1.2 || 1.5);
+
                         // Only apply suggestedMin/Max if min/max are not manually set
                         if (waveformChart.options.scales.y.min === undefined && waveformChart.options.scales.y.max === undefined) {
-                            waveformChart.options.scales.y.suggestedMin = -maxAmp; // Use suggested for autoscale
-                            waveformChart.options.scales.y.suggestedMax = maxAmp;  // Use suggested for autoscale
+                            waveformChart.options.scales.y.suggestedMin = -combinedMaxAmp;
+                            waveformChart.options.scales.y.suggestedMax = combinedMaxAmp;
                         }
                         waveformChart.update('none');
                     }
 
-                    // Update Frequency Spectrum Chart
+                    // Update Frequency Spectrum Chart (still based on main wave FFT)
                     if (payload.fft_frequencies_hz && payload.fft_power_dbm && payload.spectrum_details) {
                         fftSpectrumChart.data.labels = payload.fft_frequencies_hz.map(f => (f / 1e6).toFixed(2)); // Freq in MHz
                         fftSpectrumChart.data.datasets[0].data = payload.fft_power_dbm;
@@ -524,6 +548,10 @@
             const params = {
                 frequency_hz: parseFloat(document.getElementById('waveFreq').value) * 1e6,
                 amplitude_v: parseFloat(document.getElementById('waveAmp').value),
+                // NEW: Read second wave parameters
+                frequency_hz2: parseFloat(document.getElementById('waveFreq2').value) * 1e6,
+                amplitude_v2: parseFloat(document.getElementById('waveAmp2').value),
+
                 duration_s: parseFloat(document.getElementById('waveDuration').value) / 1e6, // convert µs to s
                 sample_rate_hz: parseFloat(document.getElementById('sampleRate').value) * 1e6, // convert MSa/s to Sa/s
                 noise_v: parseFloat(document.getElementById('noiseAmp').value)
