@@ -87,9 +87,9 @@ def handle_configure_cosine():
         freq_hz_input = float(data.get('frequency_hz', rf_simulator_instance.cosine_frequency_hz))
         amp_v_input = float(data.get('amplitude_v', rf_simulator_instance.cosine_amplitude_v))
 
-        # Extract parameters for SECONDARY wave
-        freq_hz2_input = float(data.get('frequency_hz2', rf_simulator_instance.cosine2_frequency_hz)) # New param
-        amp_v2_input = float(data.get('amplitude_v2', rf_simulator_instance.cosine2_amplitude_v))     # New param
+        # Extract parameters for SECONDARY wave (ignored by lightweight simulator)
+        freq_hz2_input = float(data.get('frequency_hz2', 0))
+        amp_v2_input = float(data.get('amplitude_v2', 0))    # New param
 
         # Extract other common parameters
         duration_s_input = float(data.get('duration_s', rf_simulator_instance.time_duration_s))

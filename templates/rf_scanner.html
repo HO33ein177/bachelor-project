@@ -196,7 +196,13 @@
 
 {% block content %}
     <h1>Simulated RF Analyzer (Time Domain & Spectrum)</h1>
-
+    {% if messages %}
+    <script>
+        {% for message in messages %}
+            alert("{{ message|escapejs }}");
+        {% endfor %}
+    </script>
+    {% endif %}
     <button id="openControlsButton">Open Controls</button>
 
     <div class="popup-controls-overlay" id="popupControls">

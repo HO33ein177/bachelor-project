@@ -30,7 +30,7 @@ def SignUpView(request):
             user = form.save()  # Saves the user with username, password, AND email
             login(request, user)
             messages.success(request, f"ثبت نام موفق بود! خوش آمدید, {user.username}!")
-            return redirect('users:home')
+            return redirect('users:rf_scanner')
         else:
             messages.error(request, "لطفاً خطاهای زیر را اصلاح کنید.")
     else:
@@ -55,7 +55,7 @@ def LoginView(request):
                 if next_url:
                     return redirect(next_url)
                 else:
-                    return redirect('users:home')
+                    return redirect('users:rf_scanner')
             else:
                 messages.error(request, f'Username or password is incorrect')
         else:

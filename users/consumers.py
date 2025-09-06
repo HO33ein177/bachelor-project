@@ -10,8 +10,8 @@ AGENT_API_URL = "http://127.0.0.1:8001" # Agent's own API (different port from D
 # AGENT_API_URL = "http://192.168.227.137:8001" # Agent's own API (different port from Django)
 
 RF_SPECTRUM_GROUP_NAME = 'rf_spectrum_group'
-# AGENT_CONTROL_API_URL = "http://127.0.0.1:8001" # Agent's own API
-AGENT_CONTROL_API_URL = "http://192.168.137.114:8001" # Agent's own API
+AGENT_CONTROL_API_URL = "http://127.0.0.1:8001" # Agent's own API
+# AGENT_CONTROL_API_URL = "http://192.168.137.114:8001" # Agent's own API
 
 
 
