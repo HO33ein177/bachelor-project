@@ -123,9 +123,8 @@ def receive_rf_data_view(request):
         print(f"receive_rf_data_view received data: {data}") # ADD THIS LINE
         # Update required_keys for the combined time and frequency domain data
         required_keys = [
-            "time_s", "amplitude_v_main", "amplitude_v_secondary",  # Main and Secondary Wave
-            "wave_details",  # Contains other wave properties
-            "fft_frequencies_hz", "fft_power_dbm", "spectrum_details",  # Frequency domain
+            "time_s", "amplitude_v", "wave_details",
+            "fft_frequencies_hz", "fft_power_dbm", "spectrum_details",
             "timestamp"
         ]
 

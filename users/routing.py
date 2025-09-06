@@ -7,5 +7,5 @@ websocket_urlpatterns = [
     # Example: ws://yourdomain/ws/network_data/
     re_path(r'ws/network_data/$', consumers.NetworkDataConsumer.as_asgi()),
 # --- For RF Spectrum Data --- ADD THIS ---
-    re_path(r'ws/rf_spectrum/$', consumers.RFSpectrumConsumer.as_asgi(), name='ws_rf_spectrum'),
+    re_path(r'^ws/rf_spectrum/$', consumers.RFSpectrumConsumer.as_asgi(), name='ws_rf_spectrum'),
 ]

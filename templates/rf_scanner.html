@@ -449,73 +449,52 @@
             rfStatusSpan.textContent = 'Status: Connected. Ready.';
         };
 
-        rfSocket.onmessage = function(e) {
-            console.log('Raw WebSocket message received:', e.data);
+rfSocket.onmessage = function(e) {
+    console.log('Raw WebSocket message received:', e.data);
 
-            try {
-                const data = JSON.parse(e.data);
-                console.log('Parsed WebSocket data object:', data);
-                console.log('Message Type received:', data.type);
+    try {
+        const data = JSON.parse(e.data);
+        console.log('Parsed WebSocket data object:', data);
+        console.log('Message Type received:', data.type);
 
-                if (data.type === 'rf_simulated_data') {
-                    const payload = data.payload;
-                    console.log('Received RF Spectrum Update (Payload):', payload);
+        if (data.type === 'rf_simulated_data') {
+            const payload = data.payload;
+            console.log('Received RF Data Payload:', payload);
 
-                    // Update Time-Domain Chart
-                    if (payload.time_s && payload.amplitude_v_main && payload.wave_details) { // Changed to amplitude_v_main
-                        waveformChart.data.labels = payload.time_s.map(t => (t * 1e6).toFixed(3)); // Time in µs
-                        waveformChart.data.datasets[0].data = payload.amplitude_v_main; // Main wave
-                        // Update secondary wave if available
-                        if (payload.amplitude_v_secondary) {
-                            waveformChart.data.datasets[1].data = payload.amplitude_v_secondary; // Secondary wave
-                        }
-
-                        // Adjust suggested Y-axis limits based on *both* waves if both are present
-                        let combinedMaxAmp = Math.max(
-                            Math.max(...payload.amplitude_v_main.map(Math.abs)),
-                            payload.amplitude_v_secondary ? Math.max(...payload.amplitude_v_secondary.map(Math.abs)) : 0
-                        );
-                        combinedMaxAmp = Math.max(0.1, combinedMaxAmp * 1.2 || 1.5);
-
-                        // Only apply suggestedMin/Max if min/max are not manually set
-                        if (waveformChart.options.scales.y.min === undefined && waveformChart.options.scales.y.max === undefined) {
-                            waveformChart.options.scales.y.suggestedMin = -combinedMaxAmp;
-                            waveformChart.options.scales.y.suggestedMax = combinedMaxAmp;
-                        }
-                        waveformChart.update('none');
-                    }
-
-                    // Update Frequency Spectrum Chart (still based on main wave FFT)
-                    if (payload.fft_frequencies_hz && payload.fft_power_dbm && payload.spectrum_details) {
-                        fftSpectrumChart.data.labels = payload.fft_frequencies_hz.map(f => (f / 1e6).toFixed(2)); // Freq in MHz
-                        fftSpectrumChart.data.datasets[0].data = payload.fft_power_dbm;
-                        const refLevel = payload.spectrum_details.ref_level_dbm || -20;
-                        // Only apply suggestedMin/Max if min/max are not manually set
-                        if (fftSpectrumChart.options.scales.y.min === undefined && fftSpectrumChart.options.scales.y.max === undefined) {
-                            fftSpectrumChart.options.scales.y.suggestedMin = refLevel - 80;
-                            fftSpectrumChart.options.scales.y.suggestedMax = refLevel;
-                        }
-                        // Only apply suggestedMin/Max for X-axis if min/max are not manually set
-                        if (fftSpectrumChart.options.scales.x.min === undefined && fftSpectrumChart.options.scales.x.max === undefined) {
-                            // Automatically scale X-axis based on actual data range
-                            fftSpectrumChart.options.scales.x.suggestedMin = parseFloat(payload.fft_frequencies_hz[0] / 1e6);
-                            fftSpectrumChart.options.scales.x.suggestedMax = parseFloat(payload.fft_frequencies_hz[payload.fft_frequencies_hz.length - 1] / 1e6);
-                        }
-                        fftSpectrumChart.update('none');
-                    }
-                    if (payload.wave_details && payload.spectrum_details){
-                        rfStatusSpan.textContent = `Status: Displaying (Time Points: ${payload.wave_details.num_points_time}, FFT Bins: ${payload.spectrum_details.num_points_fft})`;
-                    }
-
-                } else if (data.type === 'command_response' || data.type === 'status_update' || data.type === 'error_response') {
-                    rfStatusSpan.textContent = `Status: ${data.message}`;
-                    console.log("RF Simulator: Server status/response:", data.message);
-                }
-            } catch (error) {
-                console.error("Error parsing or processing WebSocket message:", error, "Raw data:", e.data);
+            // --- CORRECTION 1: Check for non-empty arrays ---
+            // Update Time-Domain Chart only if there's data
+            if (payload.time_s && payload.time_s.length > 0 && payload.amplitude_v && payload.amplitude_v.length > 0) {
+                waveformChart.data.labels = payload.time_s.map(t => (t * 1e6).toFixed(3)); // Time in µs
+                waveformChart.data.datasets[0].data = payload.amplitude_v;
+                waveformChart.update('none');
             }
-        };
 
+            // --- CORRECTION 2: Check for non-empty arrays ---
+            // Update Frequency Spectrum Chart only if there's data
+            if (payload.fft_frequencies_hz && payload.fft_frequencies_hz.length > 0 && payload.fft_power_dbm && payload.fft_power_dbm.length > 0) {
+                fftSpectrumChart.data.labels = payload.fft_frequencies_hz.map(f => (f / 1e6).toFixed(2)); // Freq in MHz
+                fftSpectrumChart.data.datasets[0].data = payload.fft_power_dbm;
+                
+                // Only autoscale if manual scale isn't set
+                if (fftSpectrumChart.options.scales.x.min === undefined && fftSpectrumChart.options.scales.x.max === undefined) {
+                    fftSpectrumChart.options.scales.x.suggestedMin = parseFloat(payload.fft_frequencies_hz[0] / 1e6);
+                    fftSpectrumChart.options.scales.x.suggestedMax = parseFloat(payload.fft_frequencies_hz[payload.fft_frequencies_hz.length - 1] / 1e6);
+                }
+                fftSpectrumChart.update('none');
+            }
+            
+            if (payload.wave_details){
+                rfStatusSpan.textContent = `Status: Displaying (Time Points: ${payload.wave_details.num_points_time})`;
+            }
+
+        } else if (data.type === 'command_response' || data.type === 'status_update' || data.type === 'error_response') {
+            rfStatusSpan.textContent = `Status: ${data.message}`;
+            console.log("RF Simulator: Server status/response:", data.message);
+        }
+    } catch (error) {
+        console.error("Error parsing or processing WebSocket message:", error, "Raw data:", e.data);
+    }
+};
         rfSocket.onclose = function(e) {
             console.error('RF Simulator: WebSocket connection closed:', e);
             rfStatusSpan.textContent = `Status: Disconnected - Code: ${e.code}, Reason: ${e.reason || 'N/A'}`;

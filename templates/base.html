@@ -1,33 +1,17 @@
 {% comment %} finalProject/templates/base.html {% endcomment %}
 {% load static %}
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}My Network Project{% endblock %}</title>
+    <title>{% block title %}{% endblock %}</title>
+    
     <link rel="stylesheet" href="{% static 'css/style.css' %}">
-    <style>
-        /* Basic RTL support - should be primarily in style.css */
-        body { direction: rtl; padding: 20px; }
-        /* Basic Message Styling */
-        .messages {
-            list-style: none;
-            padding: 15px;
-            margin: 15px 0;
-            border: 1px solid #ccc;
-            border-radius: 4px;
-        }
-        .messages li { margin-bottom: 5px; }
-        .messages li.success { border-left: 5px solid #4CAF50; padding-left: 10px; background-color: #e8f5e9; color: #2e7d32;}
-        .messages li.error { border-left: 5px solid #f44336; padding-left: 10px; background-color: #ffebee; color: #c62828;}
-        .messages li.info { border-left: 5px solid #2196F3; padding-left: 10px; background-color: #e3f2fd; color: #1565c0;}
-        .messages li.warning { border-left: 5px solid #ff9800; padding-left: 10px; background-color: #fff3e0; color: #ef6c00;}
-    </style>
+
     {% block extra_head %}{% endblock %}
 </head>
 <body>
-    <div class="container"> {% comment %} Display Django Messages {% endcomment %}
+    <div class="container">
         {% if messages %}
             <ul class="messages">
                 {% for message in messages %}
@@ -36,10 +20,8 @@
             </ul>
         {% endif %}
 
-        {% comment %} Main content block for child templates {% endcomment %}
         {% block content %}
         {% endblock %}
-
     </div>
 </body>
 </html>

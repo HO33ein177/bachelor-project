@@ -1,8 +1,7 @@
 # agent_hal.py
 import numpy as np
 import time
-# Assuming pyvisa is only imported if this were the hardware version
-# import pyvisa # Uncomment if this is the hardware version of agent_hal.py
+import pyvisa
 
 class RFHardwareSimulator: # Or RFHardwareInterface if you're using the hardware version
     def __init__(self, visa_resource_string=None): # Added visa_resource_string for compatibility
@@ -56,18 +55,18 @@ class RFHardwareSimulator: # Or RFHardwareInterface if you're using the hardware
             print("MockRF: Error - Not connected for configure_cosine_wave.")
             return False
 
-        # Update Main Wave parameters
+        # Updated Main Wave parameters
         self.cosine_frequency_hz = frequency_hz
         self.cosine_amplitude_v = amplitude_v
         self.cosine_phase_rad = phase_rad
         self.noise_amplitude_v = noise_v
 
-        # Update Second Wave parameters
+        # Updated Second Wave parameters
         self.cosine2_frequency_hz = frequency_hz2 if frequency_hz2 is not None else self.cosine2_frequency_hz
         self.cosine2_amplitude_v = amplitude_v2 if amplitude_v2 is not None else self.cosine2_amplitude_v
         self.cosine2_phase_rad = phase_rad2
 
-        # Update display/acquisition parameters
+        # Updated display/acquisition parameters
         self.time_per_div_s = time_per_div_s
         self.num_time_points = num_time_points
         self.time_duration_s = self.time_per_div_s * self.num_horizontal_divisions
@@ -106,7 +105,6 @@ class RFHardwareSimulator: # Or RFHardwareInterface if you're using the hardware
         )
 
         # --- FFT Calculation (still based on MAIN wave for simplicity as per request) ---
-        # If you want FFT of the SUM, change the argument to (amplitude_values_main + amplitude_values_secondary)
         fft_raw_output = np.fft.rfft(amplitude_values_main)
         fft_magnitude = np.abs(fft_raw_output) / current_num_points
         epsilon = 1e-12
@@ -118,13 +116,13 @@ class RFHardwareSimulator: # Or RFHardwareInterface if you're using the hardware
 
         return {
             "time_s": time_points_s.tolist(),
-            "amplitude_v_main": amplitude_values_main.tolist(), # Renamed key
-            "amplitude_v_secondary": amplitude_values_secondary.tolist(), # New key
+            "amplitude_v_main": amplitude_values_main.tolist(),
+            "amplitude_v_secondary": amplitude_values_secondary.tolist(),
             "wave_details": {
                 "frequency_hz": self.cosine_frequency_hz,
                 "amplitude_v": self.cosine_amplitude_v,
-                "frequency_hz2": self.cosine2_frequency_hz, # New detail
-                "amplitude_v2": self.cosine2_amplitude_v,   # New detail
+                "frequency_hz2": self.cosine2_frequency_hz,
+                "amplitude_v2": self.cosine2_amplitude_v,
                 "time_per_div_s": self.time_per_div_s,
                 "duration_s": self.time_duration_s,
                 "actual_sample_rate_hz": self.sample_rate_hz,

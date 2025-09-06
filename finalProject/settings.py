@@ -31,7 +31,7 @@ SECRET_KEY = 'django-insecure-h762rths^te283d!vk%etgs&zsgse+phq8m-*u-*^aguh&&pfw
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['192.168.137.1', '127.0.0.1']
 
 
 # Application definition
@@ -55,6 +55,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',
 ]
 
 ROOT_URLCONF = 'finalProject.urls'
@@ -127,7 +128,14 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
-STATIC_URL = '/static/'
+STATIC_URL = 'static/'
+
+# This is where your css, js and images are
+STATICFILES_DIRS = [
+    BASE_DIR / 'static',
+]
+
+# This is where collectstatic will copy files
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 
 # Default primary key field type
@@ -148,7 +156,7 @@ EMAIL_PORT=587
 EMAIL_USE_TLS=True
 EMAIL_USE_SSL=False
 
-ASGI_Application = "finalProject.asgi.application"
+ASGI_APPLICATION = "finalProject.asgi.application"
 
 CHANNEL_LAYERS = {
     'default': {

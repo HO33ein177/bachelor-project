@@ -1,52 +1,18 @@
-{#<!DOCTYPE html>#}
-{#{% load static %}#}
-{#<html lang="en">#}
-{#<head>#}
-{#  <meta charset="UTF-8">#}
-{#  <meta name="viewport" content="width=device-width, initial-scale=1.0">#}
-{#  <title>{{ page_title }} | </title>#}
-{#      <link rel="stylesheet" href="{% static 'css/style.css' %}">#}
-{#</head>#}
-{#<body>#}
-{#  <div class="wrapper">#}
-{#    <form method="post" #}
-{#          action="{% if page_title == 'Login' %}#}
-{#                        {% url 'users:login' %}#}
-{#                  {% else %}#}
-{#                        {% url 'users:signup' %}#}
-{#                  {% endif %}">#}
-{#    {% csrf_token %}#}
-{#      <h2>{{ page_title }}</h2>#}
-{#        {{ form.as_p }}#}
-{#        <div class="input-field">#}
-{#        <input type="text" required>#}
-{#        <label>نام کاربری خود را وارد کنید</label>#}
-{#      </div>#}
-{#      <div class="input-field">#}
-{#        <input type="password" required>#}
-{#        <label>رمز خود را وارد کنید</label>#}
-{#      </div>#}
-{#      <div class="forget">#}
-{#        <label for="remember">#}
-{#          <input type="checkbox" id="remember">#}
-{#          <p>من را به خاطر بسپار</p>#}
-{#        </label>#}
-{#        <a href="#">رمز را فراموش کردید؟</a>#}
-{#      </div>#}
-{#      <button type="submit">ورود</button>#}
-{#      <div class="register">#}
-{#        <p>هنوز اکانت ندارید؟ <a href="#">ثبت نام</a></p>#}
-{#      </div>#}
-{#    </form>#}
-{#  </div>#}
-{#</body>#}
-{#</html>#}
-{#{% comment %} finalProject/templates/signUp.html {% endcomment %}#}
-{#{% comment %} finalProject/templates/signUp.html (Corrected with Manual Field Rendering) {% endcomment %}#}
 {% extends 'base.html' %}
 {% load static %}
 
 {% block title %}ثبت نام{% endblock %}
+
+{% block extra_head %}
+    <link rel="stylesheet" href="{% static 'css/login.css' %}">
+    <style>
+        /* Basic RTL support for this page */
+        body { direction: rtl; }
+        .wrapper { text-align: right; }
+        .input-field label { right: 0; left: auto; }
+        .register { text-align: center; }
+    </style>
+{% endblock %}
 
 {% block content %}
     <div class="wrapper">
@@ -54,67 +20,21 @@
             {% csrf_token %}
             <h2>ثبت نام</h2>
              {% for field in form %}
-                <div class="input-field"> {{ field }} <label for="{{ field.id_for_label }}">{{ field.label }}</label> </div>
-                {% if field.errors %} <div class="errors" style="color: #ffdddd; text-align: right; font-size: 0.9em; margin-top: -10px; margin-bottom: 10px;"> {{ field.errors }} </div> {% endif %}
-                {% if field.help_text %} <div class="help-text" style="color: #cccccc; text-align: right; font-size: 0.8em; margin-top: -10px; margin-bottom: 10px;"> {{ field.help_text }} </div> {% endif %}
-             {% endfor %}
-             {% if form.non_field_errors %} <div class="errors" style="color: #ffdddd; text-align: right; font-size: 0.9em; margin-bottom: 10px;"> {{ form.non_field_errors }} </div> {% endif %}
-            <div class="forget"> <label for="remember"></label> </div>
-            <button type="submit">ثبت نام</button>
-            <div class="register"> <p>قبلاً ثبت نام کرده‌اید؟ <a href="{% url 'users:login' %}">وارد شوید</a></p> </div>
-        </form>
-    </div>
-{% endblock %}
-<!DOCTYPE html>
-{% load static %}
-<html>
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ page_title|default:"Authentication" }}</title>
-    <link rel="stylesheet" href="{% static 'css/style.css' %}"> </head>
-<body>
-    <div class="wrapper"> <form method="POST" action="{% if page_title == 'Login' %}{% url 'users:login' %}{% else %}{% url 'users:signup' %}{% endif %}">
-            {% csrf_token %}
-
-            <h2>{{ page_title }}</h2> {% comment %} Manually render fields to match CSS structure {% endcomment %}
-            {% for field in form %}
-                <div class="input-field"> {{ field }} <label for="{{ field.id_for_label }}">{{ field.label }}</label> </div>
-                {% comment %} Optional: Display field-specific errors below the field {% endcomment %}
+                <div class="input-field">
+                    {{ field }}
+                    <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+                </div>
                 {% if field.errors %}
-                    <div class="errors" style="color: #ffdddd; text-align: left; font-size: 0.9em; margin-top: -10px; margin-bottom: 10px;">
-                        {{ field.errors }}
-                    </div>
+                    <div class="errors" style="color: #ffdddd; text-align: right; font-size: 0.9em; margin-top: -10px; margin-bottom: 10px;">{{ field.errors }}</div>
                 {% endif %}
-                {% comment %} Optional: Display help text if any {% endcomment %}
-                 {% if field.help_text %}
-                    <div class="help-text" style="color: #cccccc; text-align: left; font-size: 0.8em; margin-top: -10px; margin-bottom: 10px;">
-                        {{ field.help_text }}
-                    </div>
-                 {% endif %}
-            {% endfor %}
-
-            {% comment %} Display non-field errors (e.g., login failed) if any {% endcomment %}
-            {% if form.non_field_errors %}
-                <div class="errors" style="color: #ffdddd; text-align: left; font-size: 0.9em; margin-bottom: 10px;">
-                    {{ form.non_field_errors }}
-                </div>
-            {% endif %}
-
-            <div class="forget"> <label for="remember">
-                    </label>
-                </div>
-
-            <button type="submit">
-                {{ page_title|default:"Submit" }}
-            </button> <div class="register"> 
-            {% if page_title == 'Login' %}
-                    <p>Don't have an acoc <a href="{% url 'users:signup' %}">Signup</a></p> 
-            {% else %}
-                    <p>already registered?<a href="{% url 'users:login' %}">Login</a></p>
-                {% endif %}
+             {% endfor %}
+             {% if form.non_field_errors %}
+                <div class="errors" style="color: #ffdddd; text-align: right; font-size: 0.9em; margin-bottom: 10px;">{{ form.non_field_errors }}</div>
+             {% endif %}
+            <button type="submit">ثبت نام</button>
+            <div class="register">
+                <p>قبلاً ثبت نام کرده‌اید؟ <a href="{% url 'users:login' %}">وارد شوید</a></p>
             </div>
         </form>
     </div>
-</body>
-</html>
+{% endblock %}
